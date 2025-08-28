@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Optional
 from fastapi import Depends, Request
@@ -10,12 +11,15 @@ from fastapi_users.authentication import (
 
 from db import get_user_db, FirestoreUserDatabase
 from models import User
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # --- User Manager ---
 class UserManager(BaseUserManager[User, uuid.UUID]):
-    reset_password_token_secret = "YOUR_SECRET_KEY_HERE"
-    verification_token_secret = "YOUR_SECRET_KEY_HERE"
+    reset_password_token_secret = os.getenv('RESET_PASSWORD_TOKEN_SECRET')
+    verification_token_secret = os.getenv('VERIFICATION_TOKEN_SECRET')
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
@@ -28,7 +32,8 @@ async def get_user_manager(user_db: FirestoreUserDatabase = Depends(get_user_db)
     yield UserManager(user_db)
 
 # --- Authentication Backend ---
-SECRET = "aa7658b3da4724caf41d2e0566eb4669c45393c7be2efb41225294a96adc9a32"
+# create secret with openssl rand -hex 32
+SECRET = os.getenv('AUTHENTICATION_BACKEND_SECRET')
 
 
 def get_jwt_strategy() -> JWTStrategy:
