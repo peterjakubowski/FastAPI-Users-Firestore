@@ -1,4 +1,4 @@
-import os
+import logging
 import uuid
 from typing import Optional
 from fastapi import Depends, Request
@@ -9,23 +9,26 @@ from fastapi_users.authentication import (
     JWTStrategy
 )
 
+from config import settings
+
 from db import get_user_db, FirestoreUserDatabase
 from models import User
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 # --- User Manager ---
 class UserManager(BaseUserManager[User, uuid.UUID]):
-    reset_password_token_secret = os.getenv('RESET_PASSWORD_TOKEN_SECRET')
-    verification_token_secret = os.getenv('VERIFICATION_TOKEN_SECRET')
+    reset_password_token_secret = settings.RESET_PASSWORD_TOKEN_SECRET
+    verification_token_secret = settings.VERIFICATION_TOKEN_SECRET
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        print(f"User {user.id} has registered.")
+        logging.info(f"User {user.id} has registered.")
 
     def parse_id(self, id: str) -> uuid.UUID:
-        return uuid.UUID(id)
+        try:
+            return uuid.UUID(id)
+        except (ValueError, TypeError) as e:
+            logging.warning(f"Invalid UUID provided: {id}")
+            raise ValueError(f"Invalid user ID format: {id}") from e
 
 
 async def get_user_manager(user_db: FirestoreUserDatabase = Depends(get_user_db)):
@@ -33,7 +36,7 @@ async def get_user_manager(user_db: FirestoreUserDatabase = Depends(get_user_db)
 
 # --- Authentication Backend ---
 # create secret with openssl rand -hex 32
-SECRET = os.getenv('AUTHENTICATION_BACKEND_SECRET')
+SECRET = settings.AUTHENTICATION_BACKEND_SECRET
 
 
 def get_jwt_strategy() -> JWTStrategy:
